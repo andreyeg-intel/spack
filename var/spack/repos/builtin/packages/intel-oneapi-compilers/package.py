@@ -22,6 +22,16 @@ class IntelOneapiCompilers(IntelOneApiPackage):
     depends_on('patchelf', type='build')
 
     if platform.system() == 'Linux':
+        version('2022.0.0',
+                url='https://registrationcenter-download.intel.com/akdlm/irc_nas/18404/l_dpcpp-cpp-compiler_p_2022.0.0.66_offline.sh',
+                sha256='1a5de25a120aedb7e06ab052078aecdf6e547d606b0fc5c10b2bc66633ab21d5',
+                expand=False)
+        resource(name='fortran-installer',
+                 url='https://registrationcenter-download.intel.com/akdlm/irc_nas/18400/l_fortran-compiler_p_2022.0.0.65_offline.sh',
+                 sha256='1267bc75b3dcbeb966d688cd1ccb787a4f100465356d6181d9fe4c0bb106cbe9',
+                 expand=False,
+                 placement='fortran-installer',
+                 when='@2022.0.0')
         version('2021.4.0',
                 url='https://registrationcenter-download.intel.com/akdlm/irc_nas/18209/l_dpcpp-cpp-compiler_p_2021.4.0.3201_offline.sh',
                 sha256='9206bff1c2fdeb1ca0d5f79def90dcf3e6c7d5711b9b5adecd96a2ba06503828',

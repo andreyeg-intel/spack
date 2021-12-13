@@ -17,6 +17,10 @@ class IntelOneapiMkl(IntelOneApiLibraryPackage):
     homepage = 'https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onemkl.html'
 
     if platform.system() == 'Linux':
+        version('2022.0.0',
+                url='https://registrationcenter-download.intel.com/akdlm/irc_nas/18376/l_onemkl_p_2022.0.0.108_offline.sh',
+                sha256='33ac596ff4eeb27d56f4c2badfde962d4d358a721a3e2a73f676427232c18414',
+                expand=False)
         version('2021.4.0',
                 url='https://registrationcenter-download.intel.com/akdlm/irc_nas/18222/l_onemkl_p_2021.4.0.640_offline.sh',
                 sha256='9ad546f05a421b4f439e8557fd0f2d83d5e299b0d9bd84bdd86be6feba0c3915',
