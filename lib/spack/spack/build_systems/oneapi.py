@@ -10,7 +10,7 @@
 import getpass
 import platform
 import shutil
-from os.path import basename, dirname, isdir
+from os.path import basename, dirname, isdir, exists, join, expanduser
 
 from llnl.util.filesystem import find_headers, find_libraries, join_path
 
@@ -47,7 +47,7 @@ class IntelOneApiPackage(Package):
         # installing fortran, which comes from a spack resource
         if installer_path is None:
             installer_path = basename(self.url_for_version(spec.version))
-
+        instance = prefix.split('/')[-1]
         if platform.system() == 'Linux':
             # Intel installer assumes and enforces that all components
             # are installed into a single prefix. Spack wants to
@@ -62,24 +62,54 @@ class IntelOneApiPackage(Package):
             # with other install depends on the userid. For root, we
             # delete the installercache before and after install. For
             # non root we redefine the HOME environment variable.
-            if getpass.getuser() == 'root':
-                shutil.rmtree('/var/intel/installercache', ignore_errors=True)
-
             bash = Executable('bash')
-
-            # Installer writes files in ~/intel set HOME so it goes to prefix
-            bash.add_default_env('HOME', prefix)
             # Installer checks $XDG_RUNTIME_DIR/.bootstrapper_lock_file as well
             bash.add_default_env('XDG_RUNTIME_DIR',
                                  join_path(self.stage.path, 'runtime'))
 
-            bash(installer_path,
-                 '-s', '-a', '-s', '--action', 'install',
-                 '--eula', 'accept',
-                 '--install-dir', prefix)
+            if '2021' in str(spec.version):
+                installer_cache = '/var/intel/installercache'
+                installer_cache_backup = installer_cache + '_backup_' + instance
+                if getpass.getuser() == 'root':
+                    if exists(installer_cache):
+                        shutil.move(installer_cache, installer_cache_backup)
 
-            if getpass.getuser() == 'root':
-                shutil.rmtree('/var/intel/installercache', ignore_errors=True)
+                # Installer writes files in ~/intel set HOME so it goes to prefix
+                bash.add_default_env('HOME', prefix)
+
+                bash(installer_path,
+                     '-s', '-a', '-s', '--action', 'install',
+                     '--eula', 'accept',
+                     '--install-dir', prefix)
+
+                if getpass.getuser() == 'root':
+                    shutil.rmtree(installer_cache, ignore_errors=True)
+                    if exists(installer_cache_backup):
+                        shutil.move(installer_cache_backup, installer_cache)
+            else:
+                # Since 2022 release oneAPI installer supports multi-instance mode
+                # and can separate one installation from another. That means 
+                # all manipulations with installercahce is unnessesary. 
+                download_cache_dir = join(expanduser('~'), 'intel', 'download_cache_' + instance)
+                if getpass.getuser() == 'root':
+                    download_cache_dir = '/var/intel/dowload_cache_' + instance
+
+                bash(installer_path,
+                     '-s', '-a', '-s', '--action', 'install',
+                     '--eula', 'accept',
+                     '--instance', instance,
+                     '--download-cache', download_cache_dir,
+                     '--install-dir', prefix)
+                
+                # There is no support of customizing uninstallation process in Spack except for a global hook,
+                # so there is no easy and elegant way to run the installer for proper product uninstallation.
+                # This just remove the instance from the installer database now to avoid keeping garbage on the system.
+                # This also prevents product instances installed by Spack from  uninstalling/modifying by the installer (without Spack).
+                shutil.rmtree(download_cache_dir)
+                if getpass.getuser() == 'root':
+                    shutil.rmtree(join('/var/intel/installercache/instances', instance))
+                else:
+                    shutil.rmtree(join(expanduser('~'), 'intel/installercache/instances', instance))
 
         # Some installers have a bug and do not return an error code when failing
         if not isdir(join_path(prefix, self.component_dir)):
